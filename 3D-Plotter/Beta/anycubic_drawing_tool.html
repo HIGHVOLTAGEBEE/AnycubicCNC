@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anycubic i3 Mega Drawing Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 12px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #c0392b;
+        }
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #e74c3c;
+            background: white;
+            max-width: 100;
+        }
+        .output-area {
+            margin-top: 20px;
+        }
+        textarea {
+            width: 100;
+            height: 200px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            resize: vertical;
+        }
+        .info {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖊️ Anycubic i3 Mega Drawing Tool</h1>
+ECHO ist ausgeschaltet (OFF).
+        <div class="info">
+            <strong>Build Volume:</strong> 210 x 210 x 205 mm <br>
+            <strong>Hinweis:</strong> Dieses Tool konvertiert Bilder in G-Code für das Zeichnen mit einem Stift auf dem Anycubic i3 Mega.
+        </div>
+ECHO ist ausgeschaltet (OFF).
+        <div class="controls">
+            <div>
+                <div class="control-group">
+                    <label for="imageInput">Bild hochladen:</label>
+                    <input type="file" id="imageInput" accept="image/*">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="drawWidth">Zeichenbreite (mm):</label>
+                    <input type="number" id="drawWidth" value="100" min="1" max="210">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="drawHeight">Zeichenhöhe (mm):</label>
+                    <input type="number" id="drawHeight" value="100" min="1" max="210">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="startX">Start X-Position (mm):</label>
+                    <input type="number" id="startX" value="55" min="0" max="210">
+                </div>
+            </div>
+ECHO ist ausgeschaltet (OFF).
+            <div>
+                <div class="control-group">
+                    <label for="startY">Start Y-Position (mm):</label>
+                    <input type="number" id="startY" value="55" min="0" max="210">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="drawZ">Zeichenhöhe Z (mm):</label>
+                    <input type="number" id="drawZ" value="0.5" min="0" max="205" step="0.1">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="drawSpeed">Zeichengeschwindigkeit (mm/min):</label>
+                    <input type="number" id="drawSpeed" value="1000" min="100" max="3000">
+                </div>
+ECHO ist ausgeschaltet (OFF).
+                <div class="control-group">
+                    <label for="threshold">Schwellenwert (0-255):</label>
+                    <input type="number" id="threshold" value="128" min="0" max="255">
+                </div>
+            </div>
+        </div>
+ECHO ist ausgeschaltet (OFF).
+        <div class="warning">
+            ⚠️ Stellen Sie sicher, dass die Start-Position + Zeichengröße nicht das Build Volume überschreitet!
+        </div>
+ECHO ist ausgeschaltet (OFF).
+        <button onclick="processImage(^)">Bild verarbeiten und G-Code generieren</button>
+ECHO ist ausgeschaltet (OFF).
+        <div class="preview-container">
+            <h3>Vorschau:</h3>
+            <canvas id="previewCanvas" width="400" height="400"></canvas>
+        </div>
+ECHO ist ausgeschaltet (OFF).
+        <div class="output-area">
+            <h3>Generierter G-Code:</h3>
+            <textarea id="gcodeOutput" placeholder="G-Code wird hier angezeigt..."></textarea>
+            <button onclick="downloadGCode(^)">G-Code herunterladen</button>
+        </div>
+    </div>
+ECHO ist ausgeschaltet (OFF).
+    <script>
+        let processedImage = null;
+ECHO ist ausgeschaltet (OFF).
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        processedImage = img;
+                        updatePreview();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+ECHO ist ausgeschaltet (OFF).
+        function updatePreview() {
+            if (!processedImage) return;
+ECHO ist ausgeschaltet (OFF).
+            const canvas = document.getElementById('previewCanvas');
+            const ctx = canvas.getContext('2d');
+ECHO ist ausgeschaltet (OFF).
+            // Canvas löschen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+ECHO ist ausgeschaltet (OFF).
+            // Bild proportional skalieren
+            const scale = Math.min(canvas.width / processedImage.width, canvas.height / processedImage.height);
+            const scaledWidth = processedImage.width * scale;
+            const scaledHeight = processedImage.height * scale;
+            const x = (canvas.width - scaledWidth) / 2;
+            const y = (canvas.height - scaledHeight) / 2;
+ECHO ist ausgeschaltet (OFF).
+            ctx.drawImage(processedImage, x, y, scaledWidth, scaledHeight);
+        }
+ECHO ist ausgeschaltet (OFF).
+        function processImage() {
+            if (!processedImage) {
+                alert('Bitte wählen Sie zuerst ein Bild aus!');
+                return;
+            }
+ECHO ist ausgeschaltet (OFF).
+            const drawWidth = parseFloat(document.getElementById('drawWidth').value);
+            const drawHeight = parseFloat(document.getElementById('drawHeight').value);
+            const startX = parseFloat(document.getElementById('startX').value);
+            const startY = parseFloat(document.getElementById('startY').value);
+            const drawZ = parseFloat(document.getElementById('drawZ').value);
+            const drawSpeed = parseFloat(document.getElementById('drawSpeed').value);
+            const threshold = parseFloat(document.getElementById('threshold').value);
+ECHO ist ausgeschaltet (OFF).
+            // Validierung
+            if (startX + drawWidth > 210 || startY + drawHeight > 210) {
+                alert('Fehler: Zeichnung würde das Build Volume überschreiten!');
+                return;
+            }
+ECHO ist ausgeschaltet (OFF).
+            // Temporäres Canvas für Bildverarbeitung
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+ECHO ist ausgeschaltet (OFF).
+            // Berechne die Auflösung basierend auf der Zeichengröße
+            const resolution = Math.min(200, Math.max(50, drawWidth * 2));
+            tempCanvas.width = resolution;
+            tempCanvas.height = resolution;
+ECHO ist ausgeschaltet (OFF).
+            // Zeichne das Bild in Graustufen
+            tempCtx.drawImage(processedImage, 0, 0, tempCanvas.width, tempCanvas.height);
+ECHO ist ausgeschaltet (OFF).
+            // Hole Bilddaten
+            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const data = imageData.data;
+ECHO ist ausgeschaltet (OFF).
+            // Konvertiere zu Graustufen und wende Schwellenwert an
+            const pixels = [];
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const gray = (r + g + b) / 3;
+                pixels.push(gray < threshold ? 1 : 0);
+            }
+ECHO ist ausgeschaltet (OFF).
+            // Generiere G-Code
+            const gcode = generateGCode(pixels, tempCanvas.width, tempCanvas.height, drawWidth, drawHeight, startX, startY, drawZ, drawSpeed);
+ECHO ist ausgeschaltet (OFF).
+            document.getElementById('gcodeOutput').value = gcode;
+        }
+ECHO ist ausgeschaltet (OFF).
+        function generateGCode(pixels, width, height, drawWidth, drawHeight, startX, startY, drawZ, drawSpeed) {
+            let gcode = '';
+ECHO ist ausgeschaltet (OFF).
+            // G-Code Header
+            gcode += '; Anycubic i3 Mega Drawing G-Code\n';
+            gcode += '; Generiert am: ' + new Date().toLocaleString() + '\n';
+            gcode += '; Zeichengröße: ' + drawWidth + 'x' + drawHeight + ' mm\n';
+            gcode += '; Start Position: X' + startX + ' Y' + startY + ' Z' + drawZ + '\n';
+            gcode += '; Geschwindigkeit: ' + drawSpeed + ' mm/min\n\n';
+ECHO ist ausgeschaltet (OFF).
+            // Initialisierung
+            gcode += 'G21 ; Millimeter\n';
+            gcode += 'G90 ; Absolute Positionierung\n';
+            gcode += 'M82 ; Extruder absolute Positionierung\n';
+            gcode += 'G28 ; Home all axes\n';
+            gcode += 'G1 Z' + (drawZ + 10) + ' F' + drawSpeed + ' ; Sichere Höhe\n';
+            gcode += 'G1 X' + startX + ' Y' + startY + ' F' + drawSpeed + ' ; Zur Startposition\n';
+            gcode += 'G1 Z' + drawZ + ' F' + (drawSpeed/2) + ' ; Auf Zeichenhöhe\n\n';
+ECHO ist ausgeschaltet (OFF).
+            let isDrawing = false;
+ECHO ist ausgeschaltet (OFF).
+            // Zeichne zeilenweise
+            for (let y = 0; y < height; y++) {
+                const actualY = startY + (y / height) * drawHeight;
+ECHO ist ausgeschaltet (OFF).
+                // Wechsle Richtung für jede Zeile (Boustrophedon)
+                if (y  2 === 0) {
+                    // Links nach rechts
+                    for (let x = 0; x < width; x++) {
+                        const pixelIndex = y * width + x;
+                        const actualX = startX + (x / width) * drawWidth;
+ECHO ist ausgeschaltet (OFF).
+                        if (pixels[pixelIndex] === 1) {
+                            if (!isDrawing) {
+                                gcode += 'G1 Z' + drawZ + ' F' + (drawSpeed/2) + ' ; Stift runter\n';
+                                isDrawing = true;
+                            }
+                            gcode += 'G1 X' + actualX.toFixed(2) + ' Y' + actualY.toFixed(2) + ' F' + drawSpeed + '\n';
+                        } else {
+                            if (isDrawing) {
+                                gcode += 'G1 Z' + (drawZ + 2) + ' F' + (drawSpeed/2) + ' ; Stift hoch\n';
+                                isDrawing = false;
+                            }
+                            gcode += 'G1 X' + actualX.toFixed(2) + ' Y' + actualY.toFixed(2) + ' F' + drawSpeed + '\n';
+                        }
+                    }
+                } else {
+                    // Rechts nach links
+                    for (let x = width - 1; x >= 0; x--) {
+                        const pixelIndex = y * width + x;
+                        const actualX = startX + (x / width) * drawWidth;
+ECHO ist ausgeschaltet (OFF).
+                        if (pixels[pixelIndex] === 1) {
+                            if (!isDrawing) {
+                                gcode += 'G1 Z' + drawZ + ' F' + (drawSpeed/2) + ' ; Stift runter\n';
+                                isDrawing = true;
+                            }
+                            gcode += 'G1 X' + actualX.toFixed(2) + ' Y' + actualY.toFixed(2) + ' F' + drawSpeed + '\n';
+                        } else {
+                            if (isDrawing) {
+                                gcode += 'G1 Z' + (drawZ + 2) + ' F' + (drawSpeed/2) + ' ; Stift hoch\n';
+                                isDrawing = false;
+                            }
+                            gcode += 'G1 X' + actualX.toFixed(2) + ' Y' + actualY.toFixed(2) + ' F' + drawSpeed + '\n';
+                        }
+                    }
+                }
+            }
+ECHO ist ausgeschaltet (OFF).
+            // Beende das Zeichnen
+            if (isDrawing) {
+                gcode += 'G1 Z' + (drawZ + 10) + ' F' + (drawSpeed/2) + ' ; Stift hoch\n';
+            }
+ECHO ist ausgeschaltet (OFF).
+            // G-Code Ende
+            gcode += '\nG1 Z' + (drawZ + 50) + ' F' + drawSpeed + ' ; Sichere Höhe\n';
+            gcode += 'G28 X Y ; Home X und Y\n';
+            gcode += 'M84 ; Motoren ausschalten\n';
+            gcode += '; Ende des G-Codes\n';
+ECHO ist ausgeschaltet (OFF).
+            return gcode;
+        }
+ECHO ist ausgeschaltet (OFF).
+        function downloadGCode() {
+            const gcode = document.getElementById('gcodeOutput').value;
+            if (!gcode) {
+                alert('Bitte generieren Sie zuerst G-Code!');
+                return;
+            }
+ECHO ist ausgeschaltet (OFF).
+            const blob = new Blob([gcode], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'anycubic_drawing_' + new Date().toISOString().slice(0, 19).replace(/:/g, '-') + '.gcode';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+ECHO ist ausgeschaltet (OFF).
+        // Event Listeners für Live-Vorschau
+        ['drawWidth', 'drawHeight', 'startX', 'startY'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updatePreview);
+        });
+    </script>
+</body>
+</html>
